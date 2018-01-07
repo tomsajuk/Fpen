@@ -7,8 +7,10 @@ import RPi.GPIO as gpio
 import time
 
 #pin definitions
-echoPin = 24
-trigPin = 23
+echoPinx = 24
+trigPinx = 23
+echoPiny = 25
+trigPiny = 18
 butPin = 17
 host = '192.168.137.4'
 port = 8888
@@ -16,24 +18,27 @@ sep = ' '
 
 #setting up RPi.GPIO
 gpio.setmode(gpio.BCM)
-gpio.setup(echoPin, gpio.IN)
-gpio.setup(trigPin, gpio.OUT)
+gpio.setup(echoPinx, gpio.IN)
+gpio.setup(trigPinx, gpio.OUT)
+gpio.setup(echoPiny, gpio.IN)
+gpio.setup(trigPiny, gpio.OUT)
 gpio.setup(butPin, gpio.IN, pull_up_down = gpio.PUD_UP)
-gpio.output(trigPin, False)
+gpio.output(trigPinx, False)
+gpio.output(trigPiny, False)
 
 print ("Waiting for sensor to settle")
 time.sleep(1)
 
 #calculating distance from sensor
-def distance():
-	gpio.output(trigPin, True)
+def distancex():
+	gpio.output(trigPinx, True)
 	time.sleep(0.00001)
-	gpio.output(trigPin, False)
+	gpio.output(trigPinx, False)
 
-	while gpio.input(echoPin) == 0:
+	while gpio.input(echoPinx) == 0:
 		start = time.time()
 
-	while gpio.input(echoPin) == 1:
+	while gpio.input(echoPinx) == 1:
 		stop = time.time()
 
 	duration = stop - start
@@ -42,6 +47,22 @@ def distance():
 	#print ("DIstance = ", curDis, "cm")
 	return curDis
 
+def distancey():
+	gpio.output(trigPiny, True)
+	time.sleep(0.00001)
+	gpio.output(trigPiny, False)
+
+	while gpio.input(echoPiny) == 0:
+		start = time.time()
+
+	while gpio.input(echoPiny) == 1:
+		stop = time.time()
+
+	duration = stop - start
+	curDis = duration * 17150
+	curDis = round(curDis, 0)
+	#print ("DIstance = ", curDis, "cm")
+	return curDis
 
 #creating socket
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -80,24 +101,28 @@ prex = receiveInt()
 prey = receiveInt()
 
 print prex, prey
-#y = prey
-#prex = 0.00
+
 try:
 	while True:
-		gpio.output(trigPin, False)
+		gpio.output(trigPinx, False)
+		gpio.output(trigPiny, False)
 		#time.sleep(0.1)
 		if gpio.input(butPin):
 			conn.send(sendInt(0))
 		else:
 			conn.send(sendInt(1))
-		x = distance()
-		chax = int(x - prex) * 10
-		#chay = int(y - prey) * 10
+		
+		x = distancex()
+		y = distancey()
+		chax = int(x - prex) * 25
+		chay = int(y - prey) * 25
 		conn.send(sendInt(chax))
-		#conn.send(sendInt(chay))
-		prex = x
-		#prey =  y
 		conn.recv(100)
+		conn.send(sendInt(chay))
+		prex = x
+		prey =  y
+		conn.recv(100)
+
 except KeyboardInterrupt:
 	conn.close()
 	s.close()
